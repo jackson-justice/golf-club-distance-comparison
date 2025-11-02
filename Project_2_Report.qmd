@@ -1,0 +1,110 @@
+---
+title: "Golf Club Distance Comparison"
+author: "Jackson Justice"
+format:
+  html:
+    embed-resources: true
+---
+
+## Data
+
+The goal of this experiment is to determine whether the type of golf club affects the distance a golf ball travels. Specifically, the question is whether the average distance differs between a 7-iron, 9-iron, and pitching wedge when struck by the same golfer under similar conditions.
+
+The response variable is total_distance, which represents the total distance (carry + roll) in yards for each shot. This is a quantitative variable.
+
+The factor is club, a categorical variable with three levels: 7i, 9i, and PW. These were chosen because they are common mid-to-short irons that differ in loft and shaft length, which directly influence launch speed and distance.
+
+Each club was used for five swings, resulting in 15 total observations. The trial order was randomized to avoid any systematic bias from fatigue or warm-up effects. All swings were hit by the same golfer, using the same balls, on the same range bay, under consistent conditions. Distances were recorded after each shot without excluding mishits to maintain unbiased results.
+
+**Why 15 observations?**  
+We used 5 swings per club (3 clubs × 5 = 15 shots) to balance precision and practicality. Five replicates per group give a reasonable estimate of the mean and within-club variability in a single range session without over-fatiguing the golfer or changing conditions.
+
+**How randomization was used**  
+Before hitting, I randomized the entire 15-shot sequence so clubs were interleaved (not all 7-iron shots in a row, etc.). This spreads any time-related effects (warm-up, rhythm, breeze shifts) across clubs and supports the independence assumption.
+
+
+## Import
+
+The data were collected and entered into a Google Sheet, then downloaded as a CSV file named `golf_distances.csv`. Each row represents one golf shot, and the dataset includes four columns: `trial`, `club`, and `total_distance`.
+
+```{r}
+library(tidyverse)
+
+golf <- read_csv("golf_distances.csv")
+golf
+```
+
+## Wrangling
+
+We specify the factor levels for `club` and ensure rows are in trial order.
+
+```{r}
+golf <- golf |>
+  mutate(
+    club = factor(club, levels = c("7i", "9i", "PW"))
+  ) |>
+  arrange(trial)
+
+# check to make sure it worked
+golf |> 
+  count(club)
+
+# summary table
+summary(golf$total_distance)
+```
+
+## EDA
+
+A summary of the distances for each club shows the mean and variability across groups.
+
+```{r}
+golf |>
+  group_by(club) |>
+  summarize(
+    n = n(),
+    mean = mean(total_distance),
+    sd = sd(total_distance)
+  )
+```
+
+A boxplot visualizes the distribution of distances by club.
+
+```{r}
+ggplot(golf, aes(x = club, y = total_distance, fill = club)) +
+  geom_boxplot(alpha = 0.8, width = 0.6, color = "black") +
+  labs(
+    x = "Club Type",
+    y = "Total Distance (yards)",
+    title = "Distribution of Shot Distance by Club"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "none"
+  )
+
+```
+
+**What the EDA is doing here**  
+The EDA summarizes the center and spread of `total_distance` within each club and checks for patterns or unusual values before modeling. The grouped summary table reports the number of shots, mean, and standard deviation for each club. The boxplots display the distribution of shot distances for each club. From the plots, the 7 iron distances range roughly from 148 to 155 yards with a median near 152, the 9 iron ranges from about 128 to 135 yards with a median around 132, and the pitching wedge ranges from about 108 to 115 yards with a median near 111. These differences show a clear separation between clubs, with each shorter iron producing a noticeably shorter average distance, which aligns with expectations based on how club loft and shaft length affect ball flight.
+
+
+## Modeling
+
+An ANOVA model was fit to test whether mean distance differs among the three clubs.
+
+```{r}
+model <- aov(total_distance ~ club, data = golf)
+anova(model)
+```
+
+## Summary
+
+The mean total distances for each club were approximately:
+
+- 7i: 152.4 yards  
+- 9i: 132.2 yards  
+- PW: 112.4 yards
+
+The one-way ANOVA tested whether the average distance differs by club type. The F-statistic was large with a p-value less than 0.05, indicating a statistically significant difference in mean total distance among the three clubs.
+
+This provides evidence that the type of club affects how far the ball travels. In practical terms, the 7-iron produced the greatest average distance, followed by the 9-iron, and then the pitching wedge. This is consistent with expectations based on club loft and design.
